@@ -1,9 +1,10 @@
 import base64
 import json
+import re
 from typing import Any
 from pydantic import BaseModel
 
-from google.adk.workflow import Workflow, node, START
+from google.adk.workflow import Workflow, node, START, Edge
 from google.adk.events.event import Event
 from google.adk.events.request_input import RequestInput
 from google.adk.agents.context import Context
@@ -26,8 +27,10 @@ class RiskEvaluation(BaseModel):
 @node
 def extract_expense(node_input: Any) -> Event:
     """Parse the incoming event (plain JSON or Pub/Sub base64) and route it."""
-    # Handle both plain JSON and base64 encoded Pub/Sub messages
-    if isinstance(node_input, dict) and "data" in node_input:
+    if hasattr(node_input, "parts") and node_input.parts:
+        text_val = node_input.parts[0].text
+        expense_dict = json.loads(text_val)
+    elif isinstance(node_input, dict) and "data" in node_input:
         data_val = node_input["data"]
         if isinstance(data_val, str):
             try:
@@ -67,6 +70,50 @@ Respond with a JSON object containing is_risky (boolean), risk_factors (list of 
     output_schema=RiskEvaluation,
     output_key="risk_evaluation"
 )
+
+@node
+def security_checkpoint(ctx: Context, node_input: Any) -> Event:
+    """Security checkpoint to scrub PII and detect prompt injection before LLM."""
+    expense = ctx.state.get("expense")
+    description = expense.get("description", "")
+    
+    redacted_categories = []
+    
+    # Scrub SSN (simplified XXX-XX-XXXX)
+    if re.search(r'\b\d{3}-\d{2}-\d{4}\b', description):
+        description = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[REDACTED_SSN]', description)
+        redacted_categories.append("SSN")
+        
+    # Scrub Credit Card (simplified 13-16 digits)
+    if re.search(r'\b(?:\d[ -]*?){13,16}\b', description):
+        description = re.sub(r'\b(?:\d[ -]*?){13,16}\b', '[REDACTED_CC]', description)
+        redacted_categories.append("CREDIT_CARD")
+        
+    expense["description"] = description
+    
+    # Defend against prompt injection
+    injection_keywords = ["ignore previous instructions", "system prompt", "auto-approve", "bypass"]
+    is_injection = any(kw in description.lower() for kw in injection_keywords)
+    
+    if is_injection:
+        # Flag as security event and route straight to human_review, bypassing LLM
+        security_flag = {
+            "is_risky": True,
+            "risk_factors": ["PROMPT_INJECTION_DETECTED"] + redacted_categories,
+            "summary": "Security alert: Potential prompt injection detected. Bypassed LLM."
+        }
+        return Event(
+            output=security_flag,
+            route="injection_detected",
+            state={"expense": expense, "security_flag": True, "redacted_categories": redacted_categories}
+        )
+        
+    # Clean expense, continue to LLM reviewer
+    return Event(
+        output=expense,
+        route="clean",
+        state={"expense": expense, "redacted_categories": redacted_categories}
+    )
 
 @node
 async def human_review(ctx: Context, node_input: Any):
@@ -109,8 +156,12 @@ root_agent = Workflow(
     edges=[
         (START, extract_expense),
         # Routing from extract_expense based on the route value returned
-        (extract_expense, auto_approve, "auto_approve"),
-        (extract_expense, risk_reviewer, "risk_review"),
+        Edge(from_node=extract_expense, to_node=auto_approve, route="auto_approve"),
+        Edge(from_node=extract_expense, to_node=security_checkpoint, route="risk_review"),
+        
+        # Security checkpoint routing
+        Edge(from_node=security_checkpoint, to_node=risk_reviewer, route="clean"),
+        Edge(from_node=security_checkpoint, to_node=human_review, route="injection_detected"),
         
         # After risk review, it goes to human review
         (risk_reviewer, human_review),
@@ -119,3 +170,6 @@ root_agent = Workflow(
         (human_review, record_outcome)
     ]
 )
+
+from google.adk.apps import App
+app = App(name="expense_agent", root_agent=root_agent)
