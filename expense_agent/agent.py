@@ -4,7 +4,7 @@ import re
 from typing import Any
 from pydantic import BaseModel
 
-from google.adk.workflow import Workflow, node, START, Edge
+from google.adk.workflow import Workflow, node, FunctionNode, START, Edge
 from google.adk.events.event import Event
 from google.adk.events.request_input import RequestInput
 from google.adk.agents.context import Context
@@ -115,20 +115,36 @@ def security_checkpoint(ctx: Context, node_input: Any) -> Event:
         state={"expense": expense, "redacted_categories": redacted_categories}
     )
 
-@node
-async def human_review(ctx: Context, node_input: Any):
+
+# human_review needs rerun_on_resume=True so the function re-executes
+# after the user submits their response, with ctx.resume_inputs populated.
+async def _human_review_fn(ctx: Context, node_input: Any):
     """Pause for human review if needed, requesting input via HITL."""
     if not ctx.resume_inputs or "human_approval" not in ctx.resume_inputs:
-        # Pause the workflow and request human input
-        yield RequestInput(
-            interrupt_id="human_approval",
-            message=f"Expense >= ${EXPENSE_THRESHOLD_USD} needs review. Risk evaluation: {node_input}. Please 'Approve' or 'Reject'."
-        )
-        return
+        # Check if it was flagged as risky
+        is_risky = True
+        if isinstance(node_input, dict) and "is_risky" in node_input:
+            is_risky = node_input["is_risky"]
+            
+        if is_risky:
+            # Pause the workflow and request human input
+            yield RequestInput(
+                interrupt_id="human_approval",
+                message=f"Expense >= ${EXPENSE_THRESHOLD_USD} needs review. Risk evaluation: {node_input}. Please 'Approve' or 'Reject'."
+            )
+            return
+        else:
+            # Not risky, bypass human review
+            decision = "Auto-Approved (Passed Risk Review)"
+            yield Event(output={"decision": decision}, state={"human_decision": decision})
+            return
     
     # Resume workflow with the human's decision
     decision = ctx.resume_inputs["human_approval"]
     yield Event(output={"decision": decision}, state={"human_decision": decision})
+
+human_review = FunctionNode(func=_human_review_fn, name="human_review", rerun_on_resume=True)
+
 
 @node
 def auto_approve(ctx: Context, node_input: Any) -> Event:
@@ -140,7 +156,7 @@ def auto_approve(ctx: Context, node_input: Any) -> Event:
 def record_outcome(ctx: Context, node_input: Any) -> Event:
     """Record the final outcome of the human review."""
     expense = ctx.state.get("expense")
-    decision = node_input.get("decision", "Unknown")
+    decision = node_input.get("decision", "Unknown") if isinstance(node_input, dict) else str(node_input)
     
     final_record = {
         "expense": expense,
@@ -150,6 +166,9 @@ def record_outcome(ctx: Context, node_input: Any) -> Event:
     return Event(output=final_record, state={"final_decision": decision})
 
 # Wire up the graph workflow
+# Use Edge() objects for conditional routing from @node-decorated functions,
+# since they are FunctionNode objects (not raw callables) and the tuple
+# syntax (node, target, "route") fails Pydantic validation for FunctionNodes.
 root_agent = Workflow(
     name="ambient_expense_agent",
     description="An ambient agent that processes expense reports via a graph workflow.",
@@ -159,11 +178,11 @@ root_agent = Workflow(
         Edge(from_node=extract_expense, to_node=auto_approve, route="auto_approve"),
         Edge(from_node=extract_expense, to_node=security_checkpoint, route="risk_review"),
         
-        # Security checkpoint routing
+        # Security checkpoint routing — mutually exclusive
         Edge(from_node=security_checkpoint, to_node=risk_reviewer, route="clean"),
         Edge(from_node=security_checkpoint, to_node=human_review, route="injection_detected"),
         
-        # After risk review, it goes to human review
+        # After LLM risk review, it goes to human review
         (risk_reviewer, human_review),
         
         # After human makes a decision, record the outcome
