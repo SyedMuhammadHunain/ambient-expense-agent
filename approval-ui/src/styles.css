@@ -1,10 +1,50 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --color-primary: #0F172A;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #1E293B;
+  --color-accent: #22C55E;
+  --color-background: #020617;
+  --color-foreground: #F8FAFC;
+  --color-muted: #1A1E2F;
+  --color-border: #334155;
+  --color-destructive: #EF4444;
+  --color-ring: #0F172A;
+}
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  font-family: 'Fira Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  /* A subtle vibrant background element to support the glassmorphism effect */
+  background-image: radial-gradient(circle at 15% 50%, rgba(34, 197, 94, 0.08), transparent 25%),
+                    radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.08), transparent 25%);
+  color: var(--color-foreground);
   min-height: 100vh;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre {
+  font-family: 'Fira Code', monospace;
+}
+
+/* Glassmorphism Utility Classes */
+.glass-panel {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.glass-card {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }

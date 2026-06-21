@@ -1,45 +1,49 @@
 <div class="min-h-screen flex items-center justify-center p-6">
   <div class="w-full max-w-lg">
     <!-- Header Card -->
-    <div class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+    <div class="glass-card rounded-2xl overflow-hidden">
       <!-- Gradient Header -->
-      <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 px-8 py-6">
-        <h1 class="text-2xl font-bold text-white tracking-tight">Expense Approval</h1>
-        <p class="text-indigo-100 text-sm mt-1">Review and action pending HITL expense requests</p>
+      <div class="px-8 py-6 border-b border-[var(--color-border)] relative">
+        <!-- Accent Glow behind header -->
+        <div class="absolute inset-0 opacity-20 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-secondary)] blur-xl z-0"></div>
+        <div class="relative z-10">
+          <h1 class="text-2xl font-bold text-[var(--color-on-primary)] tracking-tight">Expense Approval</h1>
+          <p class="text-[var(--color-foreground)] opacity-70 text-sm mt-1 font-light">Review and action pending HITL expense requests</p>
+        </div>
       </div>
 
       <!-- Body -->
-      <div class="px-8 py-6 space-y-5">
+      <div class="px-8 py-6 space-y-5 relative z-10">
         <!-- Session ID -->
         <div>
-          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Session ID</label>
+          <label class="block text-xs font-semibold text-[var(--color-foreground)] opacity-60 uppercase tracking-wider mb-1.5">Session ID</label>
           <input
             type="text"
             [value]="sessionId()"
             (input)="updateSessionId($event)"
-            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            class="w-full px-4 py-2.5 bg-[var(--color-muted)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-foreground)] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent transition-all placeholder:text-gray-500 shadow-inner"
             placeholder="e.g. test-sub"
           />
         </div>
 
         <!-- User ID -->
         <div>
-          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">User ID</label>
+          <label class="block text-xs font-semibold text-[var(--color-foreground)] opacity-60 uppercase tracking-wider mb-1.5">User ID</label>
           <input
             type="text"
             [value]="userId()"
             (input)="updateUserId($event)"
-            class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            class="w-full px-4 py-2.5 bg-[var(--color-muted)] border border-[var(--color-border)] rounded-lg text-sm text-[var(--color-foreground)] font-mono focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent transition-all placeholder:text-gray-500 shadow-inner"
             placeholder="e.g. default"
           />
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex gap-3 pt-2">
+        <div class="flex gap-3 pt-4">
           <button
             (click)="approve()"
             [disabled]="isLoading()"
-            class="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40 cursor-pointer disabled:cursor-not-allowed"
+            class="flex-1 bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-50 text-[var(--color-background)] font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)] cursor-pointer disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-95"
           >
             @if (isLoading()) {
               <span class="inline-block animate-spin mr-2">⏳</span>
@@ -49,7 +53,7 @@
           <button
             (click)="reject()"
             [disabled]="isLoading()"
-            class="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 cursor-pointer disabled:cursor-not-allowed"
+            class="flex-1 bg-transparent border-2 border-[var(--color-destructive)] text-[var(--color-destructive)] hover:bg-[var(--color-destructive)] hover:text-white disabled:opacity-50 font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] cursor-pointer disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-95"
           >
             @if (isLoading()) {
               <span class="inline-block animate-spin mr-2">⏳</span>
@@ -60,15 +64,16 @@
 
         <!-- Status Output -->
         @if (status()) {
-          <div class="mt-2 p-4 bg-gray-900 rounded-xl text-sm font-mono text-green-400 break-all border border-gray-700 shadow-inner">
-            <span class="text-gray-500 select-none">› </span>{{ status() }}
+          <div class="mt-4 p-4 glass-panel rounded-xl text-sm font-mono text-[var(--color-accent)] break-all shadow-inner relative overflow-hidden">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent)]"></div>
+            <span class="opacity-60 select-none mr-2">›</span>{{ status() }}
           </div>
         }
       </div>
 
       <!-- Footer -->
-      <div class="px-8 py-4 bg-gray-50/50 border-t border-gray-100">
-        <p class="text-xs text-gray-400 text-center">Ambient Expense Agent — Human-in-the-Loop Approval UI</p>
+      <div class="px-8 py-5 border-t border-[var(--color-border)] bg-[var(--color-primary)]/30 backdrop-blur-md">
+        <p class="text-xs text-[var(--color-foreground)] opacity-40 text-center font-light">Ambient Expense Agent — Human-in-the-Loop Approval UI</p>
       </div>
     </div>
   </div>
