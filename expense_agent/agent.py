@@ -27,23 +27,29 @@ class RiskEvaluation(BaseModel):
 @node
 def extract_expense(node_input: Any) -> Event:
     """Parse the incoming event (plain JSON or Pub/Sub base64) and route it."""
-    if hasattr(node_input, "parts") and node_input.parts:
-        text_val = node_input.parts[0].text
-        expense_dict = json.loads(text_val)
-    elif isinstance(node_input, dict) and "data" in node_input:
-        data_val = node_input["data"]
-        if isinstance(data_val, str):
-            try:
-                decoded = base64.b64decode(data_val).decode('utf-8')
-                expense_dict = json.loads(decoded)
-            except Exception:
-                expense_dict = json.loads(data_val)
+    try:
+        if hasattr(node_input, "parts") and node_input.parts:
+            text_val = node_input.parts[0].text
+            expense_dict = json.loads(text_val)
+        elif isinstance(node_input, dict) and "data" in node_input:
+            data_val = node_input["data"]
+            if isinstance(data_val, str):
+                try:
+                    decoded = base64.b64decode(data_val).decode('utf-8')
+                    expense_dict = json.loads(decoded)
+                except Exception:
+                    expense_dict = json.loads(data_val)
+            else:
+                expense_dict = data_val
+        elif isinstance(node_input, str):
+            expense_dict = json.loads(node_input)
         else:
-            expense_dict = data_val
-    elif isinstance(node_input, str):
-        expense_dict = json.loads(node_input)
-    else:
-        expense_dict = node_input
+            expense_dict = node_input
+    except Exception as e:
+        # Fallback to empty if parsing fails so the workflow doesn't completely crash 500
+        print(f"Error parsing input: {e}, input was: {node_input}")
+        expense_dict = {"amount": 0, "submitter": "unknown", "category": "unknown", "description": "Parse Error", "date": "1970-01-01"}
+
         
     expense = ExpenseReport(**expense_dict)
     

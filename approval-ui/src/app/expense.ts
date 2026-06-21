@@ -8,7 +8,7 @@ export interface RunAgentRequest {
   sessionId: string;
   newMessage: {
     role: string;
-    parts: { text: string }[];
+    parts: any[];
   };
   streaming: boolean;
 }
@@ -24,7 +24,15 @@ export class ExpenseService {
       sessionId,
       newMessage: {
         role: 'user',
-        parts: [{ text: message }]
+        parts: [
+          {
+            functionResponse: {
+              id: 'human_approval',
+              name: 'human_approval',
+              response: { decision: message }
+            }
+          }
+        ]
       },
       streaming: false
     };

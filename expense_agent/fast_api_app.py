@@ -49,6 +49,7 @@ app: FastAPI = get_fast_api_app(
     allow_origins=allow_origins,
     session_service_uri=session_service_uri,
     otel_to_cloud=False,
+    auto_create_session=True,
 )
 app.title = "ambient-expense-agent"
 app.description = "API for interacting with the Agent ambient-expense-agent"
@@ -66,21 +67,36 @@ async def pubsub_trigger(request: Request):
     subscription = envelope.get("subscription", "default")
     
     # Normalize subscription path down to a short name to keep session records readable
-    # E.g., 'projects/my-project/subscriptions/my-sub' -> 'my-sub'
     short_session_id = subscription.split("/")[-1]
     
     data_b64 = message.get("data", "")
     
+    # Decode the base64 payload so the agent receives raw JSON text
+    import base64
+    try:
+        decoded_text = base64.b64decode(data_b64).decode("utf-8")
+    except Exception:
+        decoded_text = data_b64 # Fallback if not base64
+        
     logger.info(f"Received Pub/Sub message from subscription: {short_session_id}")
     
     try:
-        # Feed the message into the workflow
-        engine = InMemoryRunner(agent=root_agent)
+        import httpx
         
-        # InMemoryRunner.run returns a generator, so we iterate through to execute it.
-        # It takes user_id, session_id, and new_message
-        for _ in engine.run(user_id="default", session_id=short_session_id, new_message=data_b64):
-            pass
+        payload = {
+            "appName": "expense_agent",
+            "userId": "default",
+            "sessionId": short_session_id,
+            "newMessage": {
+                "role": "user",
+                "parts": [{"text": decoded_text}]
+            },
+            "streaming": False
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post("http://127.0.0.1:8080/run", json=payload)
+            response.raise_for_status()
             
         return {"status": "success"}
     except Exception as e:
