@@ -17,10 +17,10 @@ import logging
 import google.auth
 from fastapi import FastAPI, Request
 from google.adk.cli.fast_api import get_fast_api_app
-from google.adk.runners import AgentEngine
+from google.adk.runners import InMemoryRunner
 
-from app.app_utils.telemetry import setup_telemetry
-from app.app_utils.typing import Feedback
+from expense_agent.app_utils.telemetry import setup_telemetry
+from expense_agent.app_utils.typing import Feedback
 from expense_agent.agent import root_agent
 
 setup_telemetry()
@@ -54,7 +54,7 @@ app.title = "ambient-expense-agent"
 app.description = "API for interacting with the Agent ambient-expense-agent"
 
 
-@app.post("/")
+@app.post("/apps/expense_agent/trigger/pubsub")
 async def pubsub_trigger(request: Request):
     """Handle incoming Pub/Sub trigger messages."""
     try:
@@ -75,11 +75,13 @@ async def pubsub_trigger(request: Request):
     
     try:
         # Feed the message into the workflow
-        engine = AgentEngine(root_agent)
-        # Using run() since we are in async def but engine might be sync or async
-        # We can run async if we wrap or if AgentEngine exposes run_async. 
-        # Actually AgentEngine has run().
-        engine.run(input=data_b64, session_id=short_session_id)
+        engine = InMemoryRunner(agent=root_agent)
+        
+        # InMemoryRunner.run returns a generator, so we iterate through to execute it.
+        # It takes user_id, session_id, and new_message
+        for _ in engine.run(user_id="default", session_id=short_session_id, new_message=data_b64):
+            pass
+            
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Error running workflow: {e}")
