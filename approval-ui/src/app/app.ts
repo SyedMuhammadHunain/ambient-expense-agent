@@ -1,12 +1,10 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet],
-  templateUrl: './app.html',
+  template: '<main class="min-h-screen bg-gray-100"><router-outlet></router-outlet></main>',
   styleUrl: './app.css'
 })
-export class App {
-  protected readonly title = signal('approval-ui');
-}
+export class App {}

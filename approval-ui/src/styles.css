@@ -1,1 +1,10 @@
 /* You can add global styles to this file, and also import other style files */
+
+@import 'tailwindcss';
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  min-height: 100vh;
+  margin: 0;
+}
