@@ -25,17 +25,17 @@ export class Dashboard {
   approve() {
     this.isLoading.set(true);
     this.status.set('Submitting approval...');
-    this.expenseService.resumeSession({
-      user_id: this.userId(),
-      session_id: this.sessionId(),
-      message: 'approve'
-    }).subscribe({
+    this.expenseService.resumeSession(
+      this.userId(),
+      this.sessionId(),
+      'approve'
+    ).subscribe({
       next: (res) => {
         this.status.set('✅ Approved: ' + JSON.stringify(res));
         this.isLoading.set(false);
       },
       error: (err) => {
-        this.status.set('❌ Error: ' + err.message);
+        this.status.set('❌ Error: ' + (err.error?.detail || err.message));
         this.isLoading.set(false);
       }
     });
@@ -44,17 +44,17 @@ export class Dashboard {
   reject() {
     this.isLoading.set(true);
     this.status.set('Submitting rejection...');
-    this.expenseService.resumeSession({
-      user_id: this.userId(),
-      session_id: this.sessionId(),
-      message: 'reject'
-    }).subscribe({
+    this.expenseService.resumeSession(
+      this.userId(),
+      this.sessionId(),
+      'reject'
+    ).subscribe({
       next: (res) => {
         this.status.set('🚫 Rejected: ' + JSON.stringify(res));
         this.isLoading.set(false);
       },
       error: (err) => {
-        this.status.set('❌ Error: ' + err.message);
+        this.status.set('❌ Error: ' + (err.error?.detail || err.message));
         this.isLoading.set(false);
       }
     });

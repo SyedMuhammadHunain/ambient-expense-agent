@@ -1,9 +1,21 @@
 {
+  "/run": {
+    "target": "http://localhost:8080",
+    "secure": false
+  },
+  "/run_sse": {
+    "target": "http://localhost:8080",
+    "secure": false
+  },
   "/dev": {
     "target": "http://localhost:8080",
     "secure": false
   },
   "/apps": {
+    "target": "http://localhost:8080",
+    "secure": false
+  },
+  "/health": {
     "target": "http://localhost:8080",
     "secure": false
   }
