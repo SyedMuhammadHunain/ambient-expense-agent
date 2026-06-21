@@ -12,19 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import logging
 
 import google.auth
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from google.adk.cli.fast_api import get_fast_api_app
-from google.cloud import logging as google_cloud_logging
+from google.adk.runners import AgentEngine
 
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
+from expense_agent.agent import root_agent
 
 setup_telemetry()
 _, project_id = google.auth.default()
-logging_client = google_cloud_logging.Client()
-logger = logging_client.logger(__name__)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
@@ -44,10 +48,42 @@ app: FastAPI = get_fast_api_app(
     artifact_service_uri=artifact_service_uri,
     allow_origins=allow_origins,
     session_service_uri=session_service_uri,
-    otel_to_cloud=True,
+    otel_to_cloud=False,
 )
 app.title = "ambient-expense-agent"
 app.description = "API for interacting with the Agent ambient-expense-agent"
+
+
+@app.post("/")
+async def pubsub_trigger(request: Request):
+    """Handle incoming Pub/Sub trigger messages."""
+    try:
+        envelope = await request.json()
+    except Exception:
+        return {"status": "error", "message": "Invalid JSON"}
+
+    message = envelope.get("message", {})
+    subscription = envelope.get("subscription", "default")
+    
+    # Normalize subscription path down to a short name to keep session records readable
+    # E.g., 'projects/my-project/subscriptions/my-sub' -> 'my-sub'
+    short_session_id = subscription.split("/")[-1]
+    
+    data_b64 = message.get("data", "")
+    
+    logger.info(f"Received Pub/Sub message from subscription: {short_session_id}")
+    
+    try:
+        # Feed the message into the workflow
+        engine = AgentEngine(root_agent)
+        # Using run() since we are in async def but engine might be sync or async
+        # We can run async if we wrap or if AgentEngine exposes run_async. 
+        # Actually AgentEngine has run().
+        engine.run(input=data_b64, session_id=short_session_id)
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error running workflow: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 @app.post("/feedback")
@@ -60,7 +96,7 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     Returns:
         Success message
     """
-    logger.log_struct(feedback.model_dump(), severity="INFO")
+    logger.info(f"Feedback received: {feedback.model_dump()}")
     return {"status": "success"}
 
 
@@ -68,4 +104,4 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

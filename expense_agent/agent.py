@@ -116,6 +116,9 @@ def security_checkpoint(ctx: Context, node_input: Any) -> Event:
     )
 
 
+class HumanDecision(BaseModel):
+    decision: str
+
 # human_review needs rerun_on_resume=True so the function re-executes
 # after the user submits their response, with ctx.resume_inputs populated.
 async def _human_review_fn(ctx: Context, node_input: Any):
@@ -130,7 +133,8 @@ async def _human_review_fn(ctx: Context, node_input: Any):
             # Pause the workflow and request human input
             yield RequestInput(
                 interrupt_id="human_approval",
-                message=f"Expense >= ${EXPENSE_THRESHOLD_USD} needs review. Risk evaluation: {node_input}. Please 'Approve' or 'Reject'."
+                message=f"Expense >= ${EXPENSE_THRESHOLD_USD} needs review. Risk evaluation: {node_input}. Please 'Approve' or 'Reject'.",
+                response_schema=HumanDecision
             )
             return
         else:
@@ -140,7 +144,8 @@ async def _human_review_fn(ctx: Context, node_input: Any):
             return
     
     # Resume workflow with the human's decision
-    decision = ctx.resume_inputs["human_approval"]
+    approval_data = ctx.resume_inputs["human_approval"]
+    decision = approval_data.get("decision", "Unknown") if isinstance(approval_data, dict) else getattr(approval_data, "decision", "Unknown")
     yield Event(output={"decision": decision}, state={"human_decision": decision})
 
 human_review = FunctionNode(func=_human_review_fn, name="human_review", rerun_on_resume=True)
