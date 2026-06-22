@@ -94,7 +94,7 @@ async def pubsub_trigger(request: Request):
             "streaming": False
         }
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post("http://127.0.0.1:8080/run", json=payload)
             response.raise_for_status()
             

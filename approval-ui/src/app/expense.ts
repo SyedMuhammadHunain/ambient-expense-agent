@@ -28,7 +28,7 @@ export class ExpenseService {
           {
             functionResponse: {
               id: 'human_approval',
-              name: 'human_approval',
+              name: 'adk_request_input',
               response: { decision: message }
             }
           }
