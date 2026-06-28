@@ -1,7 +1,16 @@
-# ambient-expense-agent
+# 𝗔𝗺𝗯𝗶𝗲𝗻𝘁 𝗘𝘅𝗽𝗲𝗻𝘀𝗲 𝗔𝗴𝗲𝗻𝘁
 
-Simple ReAct agent
-Agent generated with `agents-cli` version `0.5.0`
+An intelligent, graph-based AI agent that automates expense report processing. Built using the [Google Agent Development Kit (ADK)](https://adk.dev/), this agent evaluates expenses, redacts PII, guards against prompt injections, and dynamically requests human-in-the-loop (HITL) approval for risky claims.
+
+## 🚀 How It Works
+
+The core logic is structured as an ADK `Workflow` (`expense_agent/agent.py`), processing expenses through a series of specialized nodes:
+
+1. **Extract Expense**: Parses incoming payloads and routes low-value expenses to auto-approval while flagging larger ones for review.
+2. **Security Checkpoint**: A defensive layer that scrubs PII (e.g., SSNs, Credit Cards) and detects prompt injection attempts *before* the data reaches the LLM. If injection is detected, it immediately escalates to a human.
+3. **Risk Reviewer (LLM)**: An LLM Agent analyzes the sanitized expense report for policy violations, anomalies, or risks, outputting a structured evaluation.
+4. **Human Review (HITL)**: If the LLM flags the expense as risky, the workflow pauses, securely awaiting a human operator to `Approve` or `Reject` the claim.
+5. **Record Outcome**: Logs the final decision.
 
 ## Project Structure
 
